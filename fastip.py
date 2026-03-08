@@ -10,8 +10,8 @@ from playwright_stealth import stealth_sync
 from tqdm import tqdm
 
 # ================= 配置区 =================
-MAX_WORKERS = 5  # GitHub Actions 建议开 5 个并发，兼顾速度与内存限制
-WAIT_TIME = 5000  # 每个 IP 测速等待时间 
+MAX_WORKERS = 3  # GitHub Actions 建议开 5 个并发，兼顾速度与内存限制
+WAIT_TIME = 6000  # 每个 IP 测速等待时间 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # ==========================================
 
