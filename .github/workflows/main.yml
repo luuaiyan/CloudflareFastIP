@@ -2,8 +2,9 @@ name: Daily FastIP Checker
 
 on:
   schedule:
+    # 每天北京时间早上 6 点运行 (对应 UTC 时间前一天 22:00)
     - cron: '0 22 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动点击运行
 
 jobs:
   run-checker:
@@ -31,7 +32,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-        # 判断：如果没命中缓存，就完整下载并安装内核及依赖；如果命中了，就只安装系统底层依赖（极快）
+        # 如果没命中缓存，就安装内核及系统依赖；如果命中了，只安装系统环境
         if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
           playwright install --with-deps chromium
         else
@@ -40,13 +41,15 @@ jobs:
 
     - name: 运行测速脚本生成结果
       run: |
+        # 运行 fastip.py 并将输出保存到 result.txt
         python fastip.py > result.txt
+        # 同时在日志中打印出来，方便直接查看
         cat result.txt
 
     - name: 自动更新 README.md
       run: |
         python - <<'EOF'
-        import re
+        import re, os, sys
         from datetime import datetime, timezone, timedelta
         
         # 1. 获取当前的北京时间 (UTC+8)
@@ -54,41 +57,45 @@ jobs:
         update_time = datetime.now(tz_beijing).strftime('%Y-%m-%d %H:%M:%S')
         
         # 2. 读取测速结果
-        try:
-            with open('result.txt', 'r', encoding='utf-8') as f:
-                result_content = f.read()
-        except FileNotFoundError:
-            print("未找到 result.txt，测速可能失败了。")
-            exit(1)
+        if not os.path.exists('result.txt'):
+            print("❌ 错误：未找到 result.txt")
+            sys.exit(1)
+        with open('result.txt', 'r', encoding='utf-8') as f:
+            result_content = f.read().strip()
             
         # 3. 读取原始 README
         with open('README.md', 'r', encoding='utf-8') as f:
             readme = f.read()
             
-        # 4. 组装带时间戳和代码块的 Markdown 文本
-        new_text = f"\n> 🕒 **最后更新时间:** {update_time} (北京时间)\n\n```text\n{result_content}\n```\n"
+        # 4. 检查是否有必要的占位符标签
+        if "" not in readme or "" not in readme:
+            print("❌ 错误：README.md 中找不到 或 ")
+            sys.exit(1)
+
+        # 5. 组装新内容 (包含标签，确保下次还能匹配到)
+        new_block = f"\n> 🕒 **最后更新时间:** {update_time} (北京时间)\n\n```text\n{result_content}\n```\n"
         
-        # 5. 使用正则替换标签中间的内容
-        new_readme = re.sub(r'.*?', new_text, readme, flags=re.DOTALL)
+        # 6. 使用正则替换
+        # re.DOTALL 允许 . 匹配换行符，确保替换两个标签之间的所有内容
+        new_readme = re.sub(r'.*?', new_block, readme, flags=re.DOTALL)
         
-        # 6. 覆写 README
+        # 7. 写入 README
         with open('README.md', 'w', encoding='utf-8') as f:
             f.write(new_readme)
             
-        print("✅ README.md 组装完成！")
+        print("✅ README.md 自动更新成功！")
         EOF
 
     - name: 提交并推送到 GitHub 仓库
       run: |
-        # 配置 Git 机器人身份
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
-        # 将 result.txt 和更新后的 README.md 添加到暂存区
+        # 记录 result.txt 和 README.md 的变更
         git add result.txt README.md
         
-        # 提交更改 (如果内容没变就不会提交)
-        git commit -m "🤖 Auto update IP ranking results" || echo "No changes to commit"
+        # 提交 (如果没有变化则不报错)
+        git commit -m "🤖 Auto update IP ranking results [$(date)]" || echo "No changes to commit"
         
         # 推送回主分支
         git push
