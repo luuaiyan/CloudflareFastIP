@@ -14,6 +14,7 @@ def get_ips_from_domain(page, domain):
         page.wait_for_timeout(2000) 
         
         try:
+            # 自动点击测试按钮
             btn_locator = page.locator("button, input").filter(has_text=re.compile("测试")).first
             btn_locator.click(timeout=3000)
             print(f"  👆 成功触发域名 {domain} 的测试！")
@@ -31,8 +32,9 @@ def get_ips_from_domain(page, domain):
             match = re.search(r"filter_ip\('([^']+)'\)", onclick)
             if match:
                 ip = match.group(1)
-                if ip != '解析失败':
-                    ip_list.append(ip)
+                # 过滤掉无效字符
+                if ip and ip != '解析失败':
+                    ip_list.append(ip.strip())
         
         if not ip_list:
             page.screenshot(path=f"error_{domain}.png")
@@ -52,11 +54,10 @@ def get_ping_data_for_ip(page, ip):
         try:
             btn_locator = page.locator("button, input").filter(has_text=re.compile("测试")).first
             btn_locator.click(timeout=3000)
-            # print(f"  👆 成功触发 IP {ip} 的测试！")
         except Exception:
             pass
             
-        # 【修改点】按要求把等待时间缩短为 10 秒
+        # 等待 10 秒获取初步结果
         page.wait_for_timeout(10000) 
         
         html = page.content()
@@ -91,7 +92,7 @@ def print_top5_table(provider_name, data_list):
     if not data_list:
         print("|" + "无有效测速数据".center(42, " ") + "|")
     else:
-        # 对延迟进行从小到大排序，并只取前 5 名
+        # 对延迟进行从小到大排序
         top5 = sorted(data_list, key=lambda x: x['avg_latency'])[:5]
         for idx, item in enumerate(top5, 1):
             ip_str = item['ip'].ljust(20)
@@ -102,21 +103,12 @@ def print_top5_table(provider_name, data_list):
 
 def main():
     file_path = 'domains.txt'
-    domains = []
-    
     if not os.path.exists(file_path):
         print(f"❌ 找不到文件: {file_path}")
         return
         
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                domain = line.strip()
-                if domain:
-                    domains.append(domain)
-    except Exception as e:
-        print(f"❌ 读取 {file_path} 失败: {e}")
-        return
+    with open(file_path, 'r', encoding='utf-8') as f:
+        domains = [line.strip() for line in f if line.strip()]
 
     if not domains:
         print(f"⚠️ '{file_path}' 是空的。")
@@ -133,61 +125,60 @@ def main():
         page = context.new_page()
         stealth_sync(page)
 
-        print("\n🔎 第一阶段：开始提取 IP...")
+        # --- 第一阶段：实时去重提取 ---
+        print("\n🔎 第一阶段：开始提取 IP (实时去重)...")
         all_ips = set()
         for domain in domains:
             print(f'  正在解析: {domain}')
             ips = get_ips_from_domain(page, domain)
-            all_ips.update(ips)
+            
+            # 找出当前域名解析出、但还没在 all_ips 里的新 IP
+            new_found = [ip for ip in ips if ip not in all_ips]
+            if new_found:
+                print(f"    ✨ 发现 {len(new_found)} 个新唯一 IP")
+                all_ips.update(new_found)
+            else:
+                print(f"    ℹ️ 未发现新 IP (已在库中)")
             time.sleep(1) 
 
-        print(f'\n✅ 共提取到 {len(all_ips)} 个唯一 IP\n')
+        # 格式清洗：确保只保留合法的 IPv4 格式
+        final_list = [ip for ip in all_ips if len(ip.split('.')) == 4]
+        print(f'\n✅ 提取完成！共获取到 {len(final_list)} 个唯一 IP 待测\n')
         
-        if not all_ips:
-            print("🛑 未提取到 IP，程序终止。")
+        if not final_list:
+            print("🛑 未提取到任何有效 IP，程序终止。")
             browser.close()
             return
 
-        print("📡 第二阶段：开始多节点延迟并发测试 (每个IP测试 10 秒)...")
+        # --- 第二阶段：多节点测速 ---
+        print("📡 第二阶段：开始延迟并发测试 (每个IP等待 10 秒)...")
         ip_data = {}
-        for idx, ip in enumerate(all_ips, 1):
-            print(f'  [{idx}/{len(all_ips)}] 正在测速 IP: {ip} ...')
+        for idx, ip in enumerate(final_list, 1):
+            print(f'  [{idx}/{len(final_list)}] 正在测速 IP: {ip} ...')
             data = get_ping_data_for_ip(page, ip)
             ip_data[ip] = data
             time.sleep(1) 
 
-        # ==================== 数据清洗与聚合 ====================
-        # 【修改点】增加了 node_type="5" 代表海外
+        # --- 第三阶段：数据聚合 ---
         provider_map = {'1': '电信', '2': '联通', '3': '移动', '5': '海外'}
-        
-        # 结构: {'电信': [{'ip': '1.1.1.1', 'avg_latency': 123.4}, ...], ...}
         aggregated_stats = {name: [] for name in provider_map.values()}
         
         for ip, nodes in ip_data.items():
-            if not nodes:
-                continue
-                
-            # 将当前 IP 的所有节点按运营商分组
+            if not nodes: continue
             grouped_lats = defaultdict(list)
             for n in nodes:
                 p_name = provider_map.get(n['node_type'])
-                if p_name: # 只要 1,2,3,5 这四类
-                    if 'ms' in n['latency']:
-                        try:
-                            grouped_lats[p_name].append(float(n['latency'].replace('ms', '').strip()))
-                        except ValueError:
-                            pass
+                if p_name and 'ms' in n['latency']:
+                    try:
+                        grouped_lats[p_name].append(float(n['latency'].replace('ms', '').strip()))
+                    except ValueError: pass
             
-            # 计算当前 IP 在各大运营商的平均延迟，并存入总表
             for p_name, lats in grouped_lats.items():
                 if lats:
                     avg = sum(lats) / len(lats)
-                    aggregated_stats[p_name].append({
-                        'ip': ip,
-                        'avg_latency': avg
-                    })
+                    aggregated_stats[p_name].append({'ip': ip, 'avg_latency': avg})
 
-        # ==================== 最终图表化输出 ====================
+        # --- 第四阶段：成果展示 ---
         print('\n' + '=' * 50)
         print('🏆 优选 IP 最终测速报告 (四大线路 Top 5)')
         print('=' * 50)
@@ -196,7 +187,7 @@ def main():
             print_top5_table(p_name, aggregated_stats[p_name])
 
         browser.close()
-        print("\n🎉 所有测速任务圆满结束！")
+        print("\n🎉 任务圆满完成！")
 
 if __name__ == '__main__':
     main()
