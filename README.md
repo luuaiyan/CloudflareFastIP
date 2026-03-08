@@ -1,6 +1,12 @@
 # CloudflareFastIP
 基于itdog提取N个优选域名的IP分别进行ping测试，提取发布各线路延迟最低的5个IP
 
+# 测试结果
+这里是每天早上 6 点自动更新的最新测速结果：
+
+等待首次运行更新...
+> 测速脚本基于 Python 与 Playwright。
+
 ## ⚠️ 免责声明 (Disclaimer)
 
 1. 本项目 (`CloudflareFastIP`) 仅供个人学习、研究 Python 自动化测试技术使用，请勿用于任何商业用途或非法用途。
