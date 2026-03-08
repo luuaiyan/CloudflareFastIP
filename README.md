@@ -1,0 +1,2 @@
+# CloudflareFastIP
+基于itdog提取N个优选域名的IP分别进行ping测试，提取发布各线路延迟最低的5个IP
