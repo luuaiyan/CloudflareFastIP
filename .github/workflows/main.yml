@@ -1,4 +1,4 @@
-name: Daily FastIP Checker
+name: CloudflareFastIP Checker
 
 on:
   schedule:
