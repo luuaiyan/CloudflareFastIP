@@ -37,10 +37,9 @@ jobs:
             playwright install-deps chromium
           fi
 
-      - name: 运行测速脚本
+      - name: 运行测速脚本生成结果
         run: |
-          python fastip.py > result.txt
-          cat result.txt
+          python fastip.py
 
       - name: 更新 README
         run: |
