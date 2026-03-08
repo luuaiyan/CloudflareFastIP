@@ -2,100 +2,95 @@ name: Daily FastIP Checker
 
 on:
   schedule:
-    # 每天北京时间早上 6 点运行 (对应 UTC 时间前一天 22:00)
     - cron: '0 22 * * *'
-  workflow_dispatch: # 允许手动点击运行
+  workflow_dispatch:
 
 jobs:
   run-checker:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 检出代码 (Checkout)
-      uses: actions/checkout@v4
+      - name: 检出代码
+        uses: actions/checkout@v4
 
-    - name: 设置 Python 环境
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip' # 开启 pip 依赖自动缓存
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
 
-    - name: 缓存 Playwright 浏览器内核
-      uses: actions/cache@v4
-      id: playwright-cache
-      with:
-        path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright-${{ hashFiles('**/requirements.txt') }}
+      - name: 缓存 Playwright 浏览器
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright
 
-    - name: 安装依赖包
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-        # 如果没命中缓存，就安装内核及系统依赖；如果命中了，只安装系统环境
-        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
-          playwright install --with-deps chromium
-        else
-          playwright install-deps chromium
-        fi
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: 运行测速脚本生成结果
-      run: |
-        # 运行 fastip.py 并将输出保存到 result.txt
-        python fastip.py > result.txt
-        # 同时在日志中打印出来，方便直接查看
-        cat result.txt
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
+            playwright install --with-deps chromium
+          else
+            playwright install-deps chromium
+          fi
 
-    - name: 自动更新 README.md
-      run: |
-        python - <<'EOF'
-        import re, os, sys
-        from datetime import datetime, timezone, timedelta
-        
-        # 1. 获取当前的北京时间 (UTC+8)
-        tz_beijing = timezone(timedelta(hours=8))
-        update_time = datetime.now(tz_beijing).strftime('%Y-%m-%d %H:%M:%S')
-        
-        # 2. 读取测速结果
-        if not os.path.exists('result.txt'):
-            print("❌ 错误：未找到 result.txt")
-            sys.exit(1)
-        with open('result.txt', 'r', encoding='utf-8') as f:
-            result_content = f.read().strip()
-            
-        # 3. 读取原始 README
-        with open('README.md', 'r', encoding='utf-8') as f:
-            readme = f.read()
-            
-        # 4. 检查是否有必要的占位符标签
-        if "" not in readme or "" not in readme:
-            print("❌ 错误：README.md 中找不到 或 ")
-            sys.exit(1)
+      - name: 运行测速脚本
+        run: |
+          python fastip.py > result.txt
+          cat result.txt
 
-        # 5. 组装新内容 (包含标签，确保下次还能匹配到)
-        new_block = f"\n> 🕒 **最后更新时间:** {update_time} (北京时间)\n\n```text\n{result_content}\n```\n"
-        
-        # 6. 使用正则替换
-        # re.DOTALL 允许 . 匹配换行符，确保替换两个标签之间的所有内容
-        new_readme = re.sub(r'.*?', new_block, readme, flags=re.DOTALL)
-        
-        # 7. 写入 README
-        with open('README.md', 'w', encoding='utf-8') as f:
-            f.write(new_readme)
-            
-        print("✅ README.md 自动更新成功！")
-        EOF
+      - name: 更新 README
+        run: |
+          python << 'EOF'
+          import re
+          from datetime import datetime, timezone, timedelta
 
-    - name: 提交并推送到 GitHub 仓库
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        
-        # 记录 result.txt 和 README.md 的变更
-        git add result.txt README.md
-        
-        # 提交 (如果没有变化则不报错)
-        git commit -m "🤖 Auto update IP ranking results [$(date)]" || echo "No changes to commit"
-        
-        # 推送回主分支
-        git push
+          # 北京时间
+          tz = timezone(timedelta(hours=8))
+          now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+
+          # 读取测速结果
+          with open("result.txt","r",encoding="utf-8") as f:
+              result = f.read()
+
+          # 读取 README
+          with open("README.md","r",encoding="utf-8") as f:
+              readme = f.read()
+
+          new_block = f"""<!--RESULT_START-->
+          > 🕒 **最后更新时间:** {now} (北京时间)
+
+          ```text
+          {result}
+          ```
+          <!--RESULT_END-->"""
+
+          new_readme = re.sub(
+              r"<!--RESULT_START-->.*?<!--RESULT_END-->",
+              new_block,
+              readme,
+              flags=re.S
+          )
+
+          with open("README.md","w",encoding="utf-8") as f:
+              f.write(new_readme)
+
+          print("README 更新完成")
+          EOF
+
+      - name: 提交更新
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add README.md result.txt
+
+          if git diff --staged --quiet; then
+            echo "没有变化，不提交"
+          else
+            git commit -m "🤖 Auto update FastIP results"
+            git push
+          fi
