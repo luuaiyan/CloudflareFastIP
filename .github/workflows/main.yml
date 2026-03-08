@@ -52,7 +52,7 @@ jobs:
           now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
           # 读取测速结果
-          with open("result.txt","r",encoding="utf-8") as f:
+          with open("top5.txt","r",encoding="utf-8") as f:
               result = f.read()
 
           # 读取 README
