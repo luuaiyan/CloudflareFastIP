@@ -9,7 +9,7 @@ from playwright_stealth import stealth_sync
 from tqdm import tqdm  # 导入进度条库
 
 # --- 配置区 ---
-MAX_WORKERS = 3  
+MAX_WORKERS = 5
 WAIT_TIME = 10000  
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
