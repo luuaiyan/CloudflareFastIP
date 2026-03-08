@@ -17,12 +17,26 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip' # 开启 pip 依赖自动缓存
+
+    - name: 缓存 Playwright 浏览器内核
+      uses: actions/cache@v4
+      id: playwright-cache
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/requirements.txt') }}
 
     - name: 安装依赖包
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        playwright install --with-deps chromium
+        
+        # 判断：如果没命中缓存，就完整下载并安装内核及依赖；如果命中了，就只安装系统底层依赖（极快）
+        if [ "${{ steps.playwright-cache.outputs.cache-hit }}" != "true" ]; then
+          playwright install --with-deps chromium
+        else
+          playwright install-deps chromium
+        fi
 
     - name: 运行测速脚本生成结果
       run: |
