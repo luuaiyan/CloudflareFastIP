@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 # ================= 配置区 =================
 MAX_WORKERS = 5  # GitHub Actions 建议开 5 个并发，兼顾速度与内存限制
-WAIT_TIME = 5000  # 每个 IP 测速等待时间 (10秒)
+WAIT_TIME = 5000  # 每个 IP 测速等待时间 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # ==========================================
 
@@ -95,7 +95,7 @@ def main():
         domains = [line.strip() for line in f if line.strip()]
 
     # ================= 第一阶段：提取 IP =================
-    print("\n🔎 第一阶段：提取所有域名包含的 IP (实时去重)...", flush=True)
+    print("\n🔎 第一阶段：提取所有域名包含的 IP...", flush=True)
     all_ips = set()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -110,19 +110,18 @@ def main():
     
     # 严格过滤出合法的 IPv4 格式
     final_list = [ip for ip in all_ips if len(ip.split('.')) == 4]
-    print(f'\n✅ 最终提取完成，共有 {len(final_list)} 个有效 IP 准备进行硬核全量测速！\n', flush=True)
+    print(f'\n✅ 提取完成，共有 {len(final_list)} 个有效 IP 准备进行测试！\n', flush=True)
     
     if not final_list:
         return
 
     # ================= 第二阶段：并发测速 =================
-    print(f"📡 第二阶段：开始并行测速 (由于数量较大，请耐心等待，线程数: {MAX_WORKERS})...", flush=True)
+    print(f"📡 第二阶段：开始并行测速 (线程数: {MAX_WORKERS})...", flush=True)
     ip_data = {}
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(thread_worker, ip): ip for ip in final_list}
         
-        # 使用 tqdm 进度条，走 sys.stderr 通道确保无视任何标准输出的拦截
         for future in tqdm(concurrent.futures.as_completed(futures), 
                            total=len(final_list), 
                            desc="🚀 测速进度", 
@@ -152,7 +151,6 @@ def main():
                 aggregated_stats[p_name].append({'ip': ip, 'avg_latency': avg})
 
     # ================= 第四阶段：成果展示与自动保存 =================
-    # 我们用一个列表把所有的输出结果存起来，这样既能打印，又能写进 txt
     output_lines = []
     
     def log(msg):
