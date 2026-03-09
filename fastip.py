@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 # ================= 配置区 =================
 MAX_WORKERS = 3  
-WAIT_TIME = 10000
-TIMEOUT_MS = 15000
+WAIT_TIME = 8000
+TIMEOUT_MS = 8000
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 # ==========================================
 
@@ -115,7 +115,6 @@ def main():
     print("\n🔎 第一阶段：双栈提取与智能识别...", flush=True)
     all_ips = set()
     
-    # 提前筛选出直接输入的 IP，避免不必要的浏览器启动
     domains_to_resolve = []
     for item in domains:
         # 识别 IPv6 (包含冒号)
@@ -126,7 +125,6 @@ def main():
         elif re.match(r"^\d{1,3}(\.\d{1,3}){3}$", item):
             all_ips.add(item)
             print(f'  ⚡ [{item}] 识别为 IPv4 地址，已直接加入测速队列', flush=True)
-        # 剩下的就是需要去网页解析的域名
         else:
             domains_to_resolve.append(item)
 
@@ -191,7 +189,7 @@ def main():
                     v4_stats[p_name].append({'ip': ip, 'avg_latency': avg_lat})
 
     # 第四阶段：生成三大文件的内容
-    full_lines = ['\n' + '=' * 65, '🏆 优选 IP 最终测速报告 (双栈全量存档)', '=' * 65]
+    full_lines = ['\n' + '=' * 65, '🏆 优选 IP 最终测速报告 (完整结果)', '=' * 65]
     v4_top5_lines = ['\n' + '=' * 65, '🟢 优选 IPv4 最终测速报告 (四大线路 Top 5)', '=' * 65]
     v6_top5_lines = ['\n' + '=' * 65, '🔵 优选 IPv6 最终测速报告 (四大线路 Top 5)', '=' * 65]
 
