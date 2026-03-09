@@ -164,8 +164,8 @@ def main():
             ip, data = future.result()
             if data: ip_data[ip] = data
 
-    # 第三阶段：处理数据并按 IPv4 / IPv6 拆分
-    provider_map = {'1': '电信', '2': '联通', '3': '移动', '5': '海外'}
+    # 第三阶段：处理数据并按 IPv4 / IPv6 拆分 (移除了海外节点映射)
+    provider_map = {'1': '电信', '2': '联通', '3': '移动'}
     
     # 建立两个独立的统计字典
     v4_stats = {name: [] for name in provider_map.values()}
@@ -190,11 +190,11 @@ def main():
 
     # 第四阶段：生成三大文件的内容
     full_lines = ['\n' + '=' * 65, '🏆 优选 IP 最终测速报告 (完整结果)', '=' * 65]
-    v4_top5_lines = ['\n' + '=' * 65, '🟢 优选 IPv4 最终测速报告 (四大线路 Top 5)', '=' * 65]
-    v6_top5_lines = ['\n' + '=' * 65, '🔵 优选 IPv6 最终测速报告 (四大线路 Top 5)', '=' * 65]
+    v4_top5_lines = ['\n' + '=' * 65, '🟢 优选 IPv4 最终测速报告 (三大线路 Top 5)', '=' * 65]
+    v6_top5_lines = ['\n' + '=' * 65, '🔵 优选 IPv6 最终测速报告 (三大线路 Top 5)', '=' * 65]
 
-    for p_name in ['电信', '联通', '移动', '海外']:
-        # 1. 组装全量报告 (为了可读性，全量报告里也把 v4 和 v6 分开展示)
+    for p_name in ['电信', '联通', '移动']:
+        # 1. 组装全量报告
         full_lines.extend(build_table(f"{p_name} - IPv4", v4_stats[p_name], top_n=None))
         full_lines.extend(build_table(f"{p_name} - IPv6", v6_stats[p_name], top_n=None))
         
