@@ -2,8 +2,8 @@ name: CloudflareFastIP Checker
 
 on:
   schedule:
-    - cron: '0 0 * * 6'
-  workflow_dispatch:
+    - cron: '0 22 * * *'  # 每天北京时间早上 6 点运行
+  workflow_dispatch:      # 允许手动随时触发
 
 jobs:
   run-checker:
@@ -43,56 +43,49 @@ jobs:
 
       - name: 更新 README
         run: |
-          python << 'EOF'
+          # 将完美的 Python 逻辑写入临时脚本，彻底避免 YAML 缩进坑
+          cat << 'EOF' > update_readme.py
           import re
           from datetime import datetime, timezone, timedelta
 
-          # 北京时间
           tz = timezone(timedelta(hours=8))
           now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
-          # 分别读取 IPv4 和 IPv6 的 Top5
-          with open("ipv4-top5.txt","r",encoding="utf-8") as f:
-              v4_result = f.read().strip()
-          with open("ipv6-top5.txt","r",encoding="utf-8") as f:
-              v6_result = f.read().strip()
+          with open("ipv4-top5.txt", "r", encoding="utf-8") as f:
+              v4_result = f.read().replace('\x00', '').strip()
 
-          # 读取 README
-          with open("README.md","r",encoding="utf-8") as f:
+          with open("ipv6-top5.txt", "r", encoding="utf-8") as f:
+              v6_result = f.read().replace('\x00', '').strip()
+
+          with open("README.md", "r", encoding="utf-8") as f:
               readme = f.read()
 
-          new_block = f"""> 🕒 **最后更新时间:** {now} (北京时间)
+          # ──────────────── 核心：定义标记 ────────────────
+          start_marker = "<!-- CLOUDFLARE-FASTIP:START -->"
+          end_marker   = "<!-- CLOUDFLARE-FASTIP:END -->"
 
-          ### 🟢 IPv4 优选节点 (Top 5)
-          ```text
-          {v4_result}
-          ```
+          # 组装新内容块 (\n 保证了排版的整洁，不会有多余的缩进空格)
+          new_section = f"{start_marker}\n> 🕒 **最后更新时间:** {now} (北京时间)\n\n### 🟢 IPv4 优选节点 (Top 5)\n```text\n{v4_result}\n```\n\n### 🔵 IPv6 优选节点 (Top 5)\n```text\n{v6_result}\n```\n{end_marker}"
 
-          ### 🔵 IPv6 优选节点 (Top 5)
-          ```text
-          {v6_result}
-          ```
-          """
+          # 动态匹配并替换
+          pattern = f"{start_marker}.*?{end_marker}"
+          new_readme = re.sub(pattern, new_section, readme, flags=re.S)
 
-          new_readme = re.sub(
-              r".*?",
-              new_block,
-              readme,
-              flags=re.S
-          )
-
-          with open("README.md","w",encoding="utf-8") as f:
+          with open("README.md", "w", encoding="utf-8") as f:
               f.write(new_readme)
 
-          print("✅ README 双栈数据更新完成")
+          print("✅ README 优雅更新完成！")
           EOF
+          
+          # 执行生成好的 Python 脚本
+          python update_readme.py
 
       - name: 提交更新
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 别忘了把新增的两个 txt 文件也加进 git 里
+          
+          # 提交主页和新生成的三大数据文件
           git add README.md result.txt ipv4-top5.txt ipv6-top5.txt
 
           if git diff --staged --quiet; then
