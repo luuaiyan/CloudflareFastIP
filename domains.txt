@@ -1,7 +1,8 @@
-cdn.7zz.cn
-cdn.cloudflare.182682.xyz
-cf.yydnas.com
-cf.090227.xyz
-1357900.xyz
-cf.877774.xyz
-freeyx.cloudflare88.eu.org
+#cdn.7zz.cn
+#cdn.cloudflare.182682.xyz
+#cf.yydnas.com
+#cf.090227.xyz
+#1357900.xyz
+#cf.877774.xyz
+#freeyx.cloudflare88.eu.org
+cf.zhetengsha.eu.org
