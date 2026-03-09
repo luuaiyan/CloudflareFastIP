@@ -2,55 +2,6 @@
 
 自动提取优选域名中的IP，测试每个 优选 IP（IPv4 & IPv6） 在国内各条线路的延迟并输出最优结果。
 
-## 快速开始
-
-1. Fork 本项目
-2. 修改`domains.txt`中的优选域名
-3. 到Actions中手动触发workflow
-4. 等待完成
-
-> 不建议填很多条优选域名，否则等待时间会很长。
-
-## 本地运行
-
-可以根据自身服务器及网络环境调整以下数值：
- - `MAX_WORKERS = 3` ：并发线程数
- - `WAIT_TIME = 10000` ：等待测速结果的时间
- - `TIMEOUT_MS = 15000` ：页面超时时间
-
-1. 克隆该项目
-
-```bash
-git clone https://github.com/luuaiyan/CloudflareFastIP.git
-cd CloudflareFastIP
-```
-
-2. 创建隔离的虚拟环境（强烈推荐）
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-3. 安装依赖
-
-```bash
-# 1. 安装 Python 依赖
-pip install -r requirements.txt
-
-# 2. 下载 Playwright 需要的 Chromium 浏览器内核
-playwright install chromium
-# 注：如果你的 Linux 服务器非常干净，缺少一些图形化底层的依赖库，你可能需要加上 --with-deps 参数，即 playwright install --with-deps chromium，这可能需要 root 权限
-```
-
-4. 更新`domains.txt`内容
-
-5. 运行脚本
-
-```bash
-python3 fastip.py
-```
-
 ## 最新测速结果（自动更新）
 
 <!-- CLOUDFLARE-FASTIP:START -->
@@ -126,6 +77,55 @@ python3 fastip.py
 +------+-----------------------------------------+--------------+
 ```
 <!-- CLOUDFLARE-FASTIP:END -->
+
+## 快速开始
+
+1. Fork 本项目
+2. 修改`domains.txt`中的优选域名
+3. 到Actions中手动触发workflow
+4. 等待完成
+
+> 不建议填很多条优选域名，否则等待时间会很长。
+
+## 本地运行
+
+可以根据自身服务器及网络环境调整以下数值：
+ - `MAX_WORKERS = 3` ：并发线程数
+ - `WAIT_TIME = 10000` ：等待测速结果的时间
+ - `TIMEOUT_MS = 15000` ：页面超时时间
+
+1. 克隆该项目
+
+```bash
+git clone https://github.com/luuaiyan/CloudflareFastIP.git
+cd CloudflareFastIP
+```
+
+2. 创建隔离的虚拟环境（强烈推荐）
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+3. 安装依赖
+
+```bash
+# 1. 安装 Python 依赖
+pip install -r requirements.txt
+
+# 2. 下载 Playwright 需要的 Chromium 浏览器内核
+playwright install chromium
+# 注：如果你的 Linux 服务器非常干净，缺少一些图形化底层的依赖库，你可能需要加上 --with-deps 参数，即 playwright install --with-deps chromium，这可能需要 root 权限
+```
+
+4. 更新`domains.txt`内容
+
+5. 运行脚本
+
+```bash
+python3 fastip.py
+```
 
 ## ⚠️ 免责声明
 
