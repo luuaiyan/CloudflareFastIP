@@ -112,25 +112,51 @@ def main():
     with open('domains.txt', 'r', encoding='utf-8') as f:
         domains = [line.strip() for line in f if line.strip()]
 
-    print("\n🔎 第一阶段：双栈提取 IPv4 & IPv6...", flush=True)
+    print("\n🔎 第一阶段：双栈提取与智能识别...", flush=True)
     all_ips = set()
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(user_agent=USER_AGENT)
-        main_page = context.new_page()
-        stealth_sync(main_page)
-        for domain in domains:
-            ipv4s = get_ipv4_from_domain(main_page, domain)
-            ipv6s = get_ipv6_from_domain(main_page, domain)
-            all_ips.update(ipv4s)
-            all_ips.update(ipv6s)
-        browser.close()
     
+    # 提前筛选出直接输入的 IP，避免不必要的浏览器启动
+    domains_to_resolve = []
+    for item in domains:
+        # 识别 IPv6 (包含冒号)
+        if ':' in item:
+            all_ips.add(item)
+            print(f'  ⚡ [{item}] 识别为 IPv6 地址，已直接加入测速队列', flush=True)
+        # 识别 IPv4 (四个数字段)
+        elif re.match(r"^\d{1,3}(\.\d{1,3}){3}$", item):
+            all_ips.add(item)
+            print(f'  ⚡ [{item}] 识别为 IPv4 地址，已直接加入测速队列', flush=True)
+        # 剩下的就是需要去网页解析的域名
+        else:
+            domains_to_resolve.append(item)
+
+    # 只有当列表中真的有域名需要解析时，才启动 Playwright
+    if domains_to_resolve:
+        print(f"\n  🕸️ 启动浏览器引擎，准备解析 {len(domains_to_resolve)} 个域名...", flush=True)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(user_agent=USER_AGENT)
+            main_page = context.new_page()
+            stealth_sync(main_page)
+            for domain in domains_to_resolve:
+                print(f'  正在解析域名: {domain}', flush=True)
+                ipv4s = get_ipv4_from_domain(main_page, domain)
+                ipv6s = get_ipv6_from_domain(main_page, domain)
+                all_ips.update(ipv4s)
+                all_ips.update(ipv6s)
+            browser.close()
+    else:
+        print("\n  ⏭️ 本次列表中没有需要解析的域名，跳过浏览器启动环节。", flush=True)
+    
+    # 最终过滤与统计
     final_list = [ip for ip in all_ips if len(ip.split('.')) == 4 or ':' in ip]
     v4_count = sum(1 for ip in final_list if ':' not in ip)
     v6_count = sum(1 for ip in final_list if ':' in ip)
-    print(f'\n✅ 提取完成！共计 {len(final_list)} 个 IP (IPv4: {v4_count}, IPv6: {v6_count})\n', flush=True)
-    if not final_list: return
+    print(f'\n✅ 第一阶段完成！共计 {len(final_list)} 个待测 IP (IPv4: {v4_count}, IPv6: {v6_count})\n', flush=True)
+    
+    if not final_list: 
+        print("🛑 无有效 IP，退出测速。")
+        return
 
     print(f"📡 第二阶段：双栈智能测速 (线程: {MAX_WORKERS})...", flush=True)
     ip_data = {}
