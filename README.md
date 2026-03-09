@@ -1,6 +1,6 @@
 # CloudflareFastIP Checker
 
-自动提取 `domains.txt` 中的优选域名，测试 Cloudflare 优选 IP（IPv4 & IPv6） 在国内各线路的延迟并输出最优结果。
+自动提取优选域名中的IP，测试每个 优选 IP（IPv4 & IPv6） 在国内各条线路的延迟并输出最优结果。
 
 ## 快速开始
 
